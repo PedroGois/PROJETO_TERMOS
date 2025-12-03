@@ -1,6 +1,5 @@
-openpyxl
 selenium
-
+openpyxl
 #######caso eu vá usar webhook para enviar a mensagem pelo teams#######
 # requests 
 # python-dotenv

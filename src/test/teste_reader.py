@@ -1,4 +1,4 @@
-from excel.reader import carregar_planilha
+from src.excel.reader import carregar_planilha
 
 CAMINHO = r"C:\Users\Estagiario\JFI Silvicultura Ltda\Suporte JFI - Ti\Pedro\CONTROLE\TERMO\COLETA TERMO - 03-12-25.xlsx"
 

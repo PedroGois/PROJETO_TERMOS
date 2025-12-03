@@ -1,38 +1,22 @@
 from excel.reader import carregar_planilha
 from browser.automator import Automator
-from teams.sender import enviar_mensagem_teams
+import time
 
 def main():
-    caminho = "data/termos.xlsx"
-    registros = carregar_planilha(caminho)
+    caminho_excel = r"C:\Users\Estagiario\JFI Silvicultura Ltda\Suporte JFI - Ti\Pedro\CONTROLE\TERMO\COLETA TERMO - 03-12-25.xlsx"
 
-    automator = Automator()
+    registros = carregar_planilha(caminho_excel)
 
-    faltando_botao = []
-    faltando_teams = []
+    auto = Automator()
 
-    for r in registros:
-        nome = r["Nome"]
-        link = r["Link"]
+    for reg in registros:
+        print("Processando:", reg["pessoa"], reg["link"])
 
-        print(f"Processando {nome}...")
+        auto.abrir_link(reg["link"])
+        time.sleep(3)
+        auto.enviar_termo()
 
-        # 1. Selenium
-        if not automator.reenviar_termo(link):
-            faltando_botao.append(nome)
-
-        # 2. Teams
-        if not enviar_mensagem_teams(nome):
-            faltando_teams.append(nome)
-
-    automator.fechar()
-
-    print("\n=== PROCESSO FINALIZADO ===")
-    print("Sem botão de reenviar:")
-    print(faltando_botao)
-
-    print("\nSem Teams:")
-    print(faltando_teams)
+    auto.fechar()
 
 if __name__ == "__main__":
     main()

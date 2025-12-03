@@ -8,7 +8,7 @@ def main():
     print("\n=== TOTAL DE REGISTROS LIDOS:", len(registros), "===\n")
 
     # Mostra os 5 primeiros registros para conferência
-    for r in registros[:5]:
+    for r in registros:
         print(f"Pessoa: {r['pessoa']}")
         print(f"Ativo: {r['ativo']}")
         print(f"Movimentação: {r['tipo_mov']}")

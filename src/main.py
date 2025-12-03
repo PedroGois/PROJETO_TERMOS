@@ -3,7 +3,7 @@ from browser.automator import Automator
 import time
 
 def main():
-    caminho_excel = r"C:\Users\Estagiario\JFI Silvcultura Ltda\Suporte JFI - Ti\Pedro\CONTROLE\TERMO\COLETA TERMO - 03-12-25.xlsx"
+    caminho_excel = r"C:\Users\Estagiario\JFI Silvicultura Ltda\Suporte JFI - Ti\Pedro\CONTROLE\TERMO\COLETA TERMO - 03-12-25.xlsx"
 
     registros = carregar_planilha(caminho_excel)
 

@@ -13,7 +13,7 @@ def main():
         print("Processando:", reg["pessoa"], reg["link"])
 
         auto.abrir_link(reg["link"])
-        time.sleep(3)
+        time.sleep(2)
         auto.enviar_termo()
 
     auto.fechar()

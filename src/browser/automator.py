@@ -67,5 +67,4 @@ class Automator:
 # Exemplo de uso
 if __name__ == "__main__":
     bot = Automator()
-    # bot.abrir_link("https://seu-site.com")
-    # bot.enviar_termo()
+

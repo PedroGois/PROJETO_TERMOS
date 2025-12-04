@@ -13,12 +13,13 @@ def main():
     auto = Automator()
 
     # Processa cada registro
-    for reg in registros[5:6]:
+    for reg in registros[1:3]:
         print("Processando:", reg["pessoa"], reg["link"])
         auto.abrir_link(reg["link"])
         auto.enviar_termo()
-
-    auto.fechar()
+        
+        nome = reg["pessoa"]
+        auto.enviar_mensagem(nome)
 
 
 if __name__ == "__main__":

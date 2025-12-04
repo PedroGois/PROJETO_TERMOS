@@ -3,7 +3,9 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import TimeoutException, NoSuchElementException
+from selenium.common.exceptions import TimeoutException, NoSuchElementException, ElementClickInterceptedException
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.common.action_chains import ActionChains
 import time
 import subprocess
 import os
@@ -63,6 +65,104 @@ class Automator:
         # Fecha a conexão com o browser
         self.driver.quit()
 
+    def enviar_mensagem(self, nome):
+        mensagem_formatada = (
+        "Olá! Estamos entrando em contato para te lembrar de confirmar o seu termo de responsabilidade referente a seu equipamento." 
+        + Keys.SHIFT + Keys.ENTER + Keys.SHIFT + Keys.ENTER + # Duas quebras de linha (parágrafo)
+        "Por favor, para evitar o bloqueio de seu email, verifique seu e-mail e siga as instruções para completar o processo."
+        + Keys.SHIFT + Keys.ENTER + Keys.SHIFT + Keys.ENTER + # Duas quebras de linha
+        "Orientações:" 
+        + Keys.SHIFT + Keys.ENTER + # Uma quebra de linha
+        "1 - Acessar o e-mail que chegou para você com o assunto '[VC-X Sonar] Entrega em andamento de ativo' >"
+        + Keys.SHIFT + Keys.ENTER + # Uma quebra de linha
+        "2 - Clicar em 'Ver Proposta de Movimentação de Ativo' >"
+        + Keys.SHIFT + Keys.ENTER + # Uma quebra de linha
+        "3- Ir em 'Confirmar movimentação' e pronto."
+        + Keys.SHIFT + Keys.ENTER + Keys.SHIFT + Keys.ENTER + # Duas quebras de linha
+        "Agradecemos sua atenção!"
+)
+        # Abre o Teams e captura erro de navegação
+        try:
+            self.abrir_link("https://teams.microsoft.com/v2/")
+        except Exception as e:
+            print(f"[TEAMS] Erro ao abrir Teams: {e}")
+            return False
+
+        wait = WebDriverWait(self.driver, 30)
+        print(f"[TEAMS] Iniciando busca por {nome}...")
+
+        # Localiza a barra de pesquisa (tenta ID, depois XPath)
+        try:
+            search_input = wait.until(EC.element_to_be_clickable((By.ID, "ms-searchux-input")))
+            print("[TEAMS] Barra de pesquisa encontrada por ID.")
+        except TimeoutException:
+            try:
+                print("[TEAMS] Tentando localizar a barra de pesquisa por XPath...")
+                search_input = wait.until(EC.element_to_be_clickable((By.XPATH, "//input[@aria-label='Search box']")))
+                print("[TEAMS] Barra de pesquisa encontrada por XPath.")
+            except TimeoutException as e:
+                print(f"[TEAMS] ERRO: barra de pesquisa não encontrada: {e}")
+                return False
+
+        # Pesquisa o usuário e seleciona o resultado
+        try:
+            search_input.clear()
+            search_input.send_keys(nome)
+            search_input.send_keys(Keys.ENTER)
+            time.sleep(1)  # deixa o Teams atualizar resultados
+
+            # Tenta localizar o cartão de pessoa que contenha o nome pesquisado
+            try:
+                card_xpath = "//div[@data-tid='search-people-card' and .//span[contains(normalize-space(.), '{}')]]".format(nome)
+                button_xpath = card_xpath + "//button[@data-tid='carousel-card-button']"
+                card_button = wait.until(EC.element_to_be_clickable((By.XPATH, button_xpath)))
+
+                # Rola o cartão para o centro e tenta clicar via JS (evita interceptação)
+                try:
+                    self.driver.execute_script("arguments[0].scrollIntoView({block:'center'});", card_button)
+                    time.sleep(0.2)
+                    self.driver.execute_script("arguments[0].click();", card_button)
+                    print(f"[TEAMS] Resultado selecionado por cartão para {nome}.")
+                except ElementClickInterceptedException:
+                    # Se elemento interceptado, tenta ActionChains
+                    try:
+                        ActionChains(self.driver).move_to_element(card_button).click().perform()
+                        print(f"[TEAMS] Resultado selecionado por cartão (ActionChains) para {nome}.")
+                    except Exception as e:
+                        print(f"[TEAMS] Falha ao clicar no cartão: {e}")
+                        raise
+
+            except TimeoutException:
+                # Fallback: tenta clicar no primeiro cartão disponível
+                try:
+                    first_button = wait.until(EC.element_to_be_clickable((By.XPATH, "//div[@data-tid='search-people-card']//button[@data-tid='carousel-card-button']")))
+                    try:
+                        self.driver.execute_script("arguments[0].scrollIntoView({block:'center'});", first_button)
+                        time.sleep(0.2)
+                        self.driver.execute_script("arguments[0].click();", first_button)
+                        print(f"[TEAMS] Selecionou primeiro resultado disponível para {nome}.")
+                    except Exception:
+                        first_button.click()
+                        print(f"[TEAMS] Selecionou primeiro resultado disponível para {nome} (click()).")
+                except Exception as e:
+                    print(f"[TEAMS] Não foi possível selecionar resultado de pesquisa: {e}")
+                    return False
+
+            # Aguarda o campo de mensagem e envia
+            message_box = wait.until(EC.element_to_be_clickable((By.XPATH, "//div[@contenteditable='true']")))
+            message_box.click()
+            message_box.send_keys(mensagem_formatada)
+            message_box.send_keys(Keys.ENTER)
+
+            print(f"[TEAMS] Mensagem enviada com sucesso para {nome}.")
+            return True
+
+        except TimeoutException as e:
+            print(f"[TEAMS] ERRO DE TIMEOUT ao enviar mensagem: {e}")
+            return False
+        except Exception as e:
+            print(f"[TEAMS] ERRO INESPERADO ao enviar mensagem: {e}")
+            return False
 
 # Exemplo de uso
 if __name__ == "__main__":

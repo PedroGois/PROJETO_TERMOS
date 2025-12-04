@@ -52,6 +52,7 @@ class Automator:
             # Clica via JavaScript para garantir sucesso
             print("Clicando no botão...")
             self.driver.execute_script("arguments[0].click();", botao)
+            # botao.click() #também funciona
             print("Botão clicado com sucesso!")
             time.sleep(1)
 

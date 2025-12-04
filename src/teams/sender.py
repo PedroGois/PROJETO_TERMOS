@@ -1,10 +1,9 @@
 def enviar_mensagem_teams(nome_usuario: str) -> bool:
-    # Aqui você configura o webhook ou busca no Teams
-    # Por enquanto, simula:
-    encontrado = True  # trocar depois pela API real
+    # Simula busca do usuário no Teams (trocar pela API real depois)
+    encontrado = True
 
     if not encontrado:
         return False
 
-    # enviar mensagem (webhook/graph API)
+    # TODO: Implementar envio via webhook ou Graph API
     return True

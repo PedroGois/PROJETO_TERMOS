@@ -1,48 +1,70 @@
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import TimeoutException, NoSuchElementException
 import time
+import subprocess
+import os
+
 
 class Automator:
 
-    def __init__(self):
+    def __init__(self, bat_path="abrir_chrome_debug.bat"):
+        # Executa o .bat para iniciar Chrome em modo debug
+        bat_completo = os.path.join(os.path.dirname(__file__), bat_path)
+        subprocess.Popen(bat_completo)
+        time.sleep(3)
+
         chrome_options = Options()
-        # Conecta na porta que abrimos pelo .bat
+        # Conecta à porta de debug aberta pelo .bat
         chrome_options.add_experimental_option("debuggerAddress", "127.0.0.1:9222")
 
-        # CORREÇÃO: Usar 'self.driver' para que fique acessível na classe toda
         self.driver = webdriver.Chrome(options=chrome_options)
-
         print("Conectado com sucesso!")
         print("Titulo da pagina:", self.driver.title)
-        
+        time.sleep(2)
+
     def abrir_link(self, url):
+        # Navega até a URL
         self.driver.get(url)
         time.sleep(1)
 
     def enviar_termo(self):
+        # Localiza e clica no botão de reenvio
         try:
-            # Exemplo de clique num botão
             print("Procurando botão...")
-            botao = self.driver.find_element(By.XPATH, "//button[contains(text(), 'Enviar termo')]")
-            botao.click()
-            print("Botão clicado!")
+            wait = WebDriverWait(self.driver, 15)
+
+            # Tenta localizar pelo ID primeiro, depois pelo XPath
+            botao = None
+            try:
+                botao = wait.until(EC.element_to_be_clickable((By.ID, "resend-asset-control-email-confirmation-button")))
+            except (TimeoutException, NoSuchElementException):
+                botao = wait.until(EC.element_to_be_clickable((By.XPATH, "//button[contains(text(), 'Reenviar E-mail de Movimentação')]")))
+
+            # Rola a página até o botão
+            print("Rolando a página até o botão...")
+            self.driver.execute_script("arguments[0].scrollIntoView(true);", botao)
+            time.sleep(0.5)
+
+            # Clica via JavaScript para garantir sucesso
+            print("Clicando no botão...")
+            self.driver.execute_script("arguments[0].click();", botao)
+            print("Botão clicado com sucesso!")
             time.sleep(1)
+
         except Exception as e:
-            print(f"Erro ao tentar clicar: {e}")
+            print(f"Erro ao clicar no botão: {e}")
 
     def fechar(self):
-        # Atenção: Isso fecha a conexão. Se quiser fechar o navegador todo, use quit()
-        # Se quiser apenas desconectar o script e deixar o Chrome aberto, não chame nada ou use close() na aba
+        # Fecha a conexão com o browser
         self.driver.quit()
 
-# --- COMO USAR ---
+
+# Exemplo de uso
 if __name__ == "__main__":
-    # 1. Certifique-se que rodou o arquivo .bat antes!
-    
-    # Instancia a automação
     bot = Automator()
-    
-    # Exemplo de uso
     # bot.abrir_link("https://seu-site.com")
     # bot.enviar_termo()

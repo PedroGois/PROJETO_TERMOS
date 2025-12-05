@@ -80,16 +80,17 @@ class Automator:
     def enviar_mensagem(self, nome):
         # Mensagem a enviar no Teams
         linhas_mensagem = [
-            "Olá! Estamos entrando em contato para te lembrar de confirmar o seu termo de responsabilidade referente a seu equipamento.",
+            "Olá! Estou passando aqui para te fazer um lembrete importante sobre o seu equipamento. ⚠️",
             "",
-            "Por favor, para evitar o bloqueio de seu email, verifique seu e-mail e siga as instruções para completar o processo.",
+            "Ainda falta confirmar o seu **Termo de Responsabilidade**. Pedimos que finalize este processo para **evitar o bloqueio do seu e-mail**.",
             "",
-            "Orientações:",
-            "1 - Acessar o e-mail que chegou para você com o assunto '[VC-X Sonar] Entrega em andamento de ativo' >",
-            "2 - Clicar em 'Ver Proposta de Movimentação de Ativo' >",
-            "3- Ir em 'Confirmar movimentação' e pronto.",
+            "Siga estes 3 passos simples:",
+            "1️⃣ - Procure o e-mail com o assunto: '[VC-X Sonar] Entrega em andamento de ativo'",
+            "2️⃣ - Clique em 'Ver Proposta de Movimentação de Ativo'",
+            "3️⃣ - Vá em 'Confirmar movimentação' e pronto! ✅",
             "",
-            "Agradecemos sua atenção!"]
+            "Qualquer dúvida, é só nos chamar! Agradecemos a atenção. 😊"
+        ]
 
         # Fase 1: Abre o Teams
         try:

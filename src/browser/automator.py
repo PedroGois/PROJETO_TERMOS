@@ -66,21 +66,19 @@ class Automator:
         self.driver.quit()
 
     def enviar_mensagem(self, nome):
-        mensagem_formatada = (
-        "Olá! Estamos entrando em contato para te lembrar de confirmar o seu termo de responsabilidade referente a seu equipamento." 
-        + Keys.SHIFT + Keys.ENTER + Keys.SHIFT + Keys.ENTER + # Duas quebras de linha (parágrafo)
-        "Por favor, para evitar o bloqueio de seu email, verifique seu e-mail e siga as instruções para completar o processo."
-        + Keys.SHIFT + Keys.ENTER + Keys.SHIFT + Keys.ENTER + # Duas quebras de linha
-        "Orientações:" 
-        + Keys.SHIFT + Keys.ENTER + # Uma quebra de linha
-        "1 - Acessar o e-mail que chegou para você com o assunto '[VC-X Sonar] Entrega em andamento de ativo' >"
-        + Keys.SHIFT + Keys.ENTER + # Uma quebra de linha
-        "2 - Clicar em 'Ver Proposta de Movimentação de Ativo' >"
-        + Keys.SHIFT + Keys.ENTER + # Uma quebra de linha
-        "3- Ir em 'Confirmar movimentação' e pronto."
-        + Keys.SHIFT + Keys.ENTER + Keys.SHIFT + Keys.ENTER + # Duas quebras de linha
-        "Agradecemos sua atenção!"
-)
+        # Lista com linhas de mensagem (vai usar Shift+Enter para quebras)
+        linhas_mensagem = [
+            "Olá! Estamos entrando em contato para te lembrar de confirmar o seu termo de responsabilidade referente a seu equipamento.",
+            "",  # Linha vazia = parágrafo
+            "Por favor, para evitar o bloqueio de seu email, verifique seu e-mail e siga as instruções para completar o processo.",
+            "",  # Linha vazia = parágrafo
+            "Orientações:",
+            "1 - Acessar o e-mail que chegou para você com o assunto '[VC-X Sonar] Entrega em andamento de ativo' >",
+            "2 - Clicar em 'Ver Proposta de Movimentação de Ativo' >",
+            "3- Ir em 'Confirmar movimentação' e pronto.",
+            "",  # Linha vazia = parágrafo
+            "Agradecemos sua atenção!"]
+
         # Abre o Teams e captura erro de navegação
         try:
             self.abrir_link("https://teams.microsoft.com/v2/")
@@ -88,7 +86,7 @@ class Automator:
             print(f"[TEAMS] Erro ao abrir Teams: {e}")
             return False
 
-        wait = WebDriverWait(self.driver, 30)
+        wait = WebDriverWait(self.driver, 5)
         print(f"[TEAMS] Iniciando busca por {nome}...")
 
         # Localiza a barra de pesquisa (tenta ID, depois XPath)
@@ -116,7 +114,7 @@ class Automator:
                 card_xpath = "//div[@data-tid='search-people-card' and .//span[contains(normalize-space(.), '{}')]]".format(nome)
                 button_xpath = card_xpath + "//button[@data-tid='carousel-card-button']"
                 card_button = wait.until(EC.element_to_be_clickable((By.XPATH, button_xpath)))
-
+                print("testando encontro do card da pessoa...")
                 # Rola o cartão para o centro e tenta clicar via JS (evita interceptação)
                 try:
                     self.driver.execute_script("arguments[0].scrollIntoView({block:'center'});", card_button)
@@ -151,7 +149,15 @@ class Automator:
             # Aguarda o campo de mensagem e envia
             message_box = wait.until(EC.element_to_be_clickable((By.XPATH, "//div[@contenteditable='true']")))
             message_box.click()
-            message_box.send_keys(mensagem_formatada)
+
+            # Envia cada linha com Shift+Enter para quebra (exceto a última, que usa Enter)
+            for i, linha in enumerate(linhas_mensagem):
+                message_box.send_keys(linha)
+                if i < len(linhas_mensagem) - 1:
+                    # Shift+Enter para quebra de linha
+                    message_box.send_keys(Keys.SHIFT + Keys.ENTER)
+            
+            # Enter final para enviar
             message_box.send_keys(Keys.ENTER)
 
             print(f"[TEAMS] Mensagem enviada com sucesso para {nome}.")

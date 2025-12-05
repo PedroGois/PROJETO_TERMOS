@@ -2,6 +2,7 @@ import openpyxl
 
 def carregar_planilha(caminho):
     # Abre a planilha com valores apenas (sem fórmulas)
+    print("[READER] Abrindo planilha...")
     wb = openpyxl.load_workbook(caminho, data_only=True)
     ws = wb.active
 
@@ -25,4 +26,5 @@ def carregar_planilha(caminho):
                 "link": link
             })
 
+    print(f"[READER] Total de registros encontrados: {len(registros)}")
     return registros

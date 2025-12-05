@@ -34,140 +34,146 @@ class Automator:
         time.sleep(1)
 
     def enviar_termo(self):
-        # Localiza e clica no botão de reenvio
+        # Fase 1: Localiza o botão de reenvio
         try:
-            print("Procurando botão...")
+            print("[TERMO] Fase 1: Procurando botão de reenvio...")
             wait = WebDriverWait(self.driver, 15)
 
-            # Tenta localizar pelo ID primeiro, depois pelo XPath
             botao = None
             try:
                 botao = wait.until(EC.element_to_be_clickable((By.ID, "resend-asset-control-email-confirmation-button")))
+                print("[TERMO] Botão localizado por ID.")
             except (TimeoutException, NoSuchElementException):
-                botao = wait.until(EC.element_to_be_clickable((By.XPATH, "//button[contains(text(), 'Reenviar E-mail de Movimentação')]")))
+                try:
+                    botao = wait.until(EC.element_to_be_clickable((By.XPATH, "//button[contains(text(), 'Reenviar E-mail de Movimentação')]")))
+                    print("[TERMO] Botão localizado por XPath.")
+                except (TimeoutException, NoSuchElementException):
+                    print("[TERMO] Botão não encontrado — pessoa já assinou o termo.")
+                    return False
 
-            # Rola a página até o botão
-            print("Rolando a página até o botão...")
+            # Fase 2: Rola e clica no botão
+            print("[TERMO] Fase 2: Rolando e clicando no botão...")
             self.driver.execute_script("arguments[0].scrollIntoView(true);", botao)
             time.sleep(0.5)
 
-            # Clica via JavaScript para garantir sucesso
-            print("Clicando no botão...")
-            self.driver.execute_script("arguments[0].click();", botao)
-            # botao.click() #também funciona
-            print("Botão clicado com sucesso!")
+            try:
+                self.driver.execute_script("arguments[0].click();", botao)
+            except ElementClickInterceptedException:
+                try:
+                    ActionChains(self.driver).move_to_element(botao).click().perform()
+                except Exception as e:
+                    print(f"[TERMO] Erro ao clicar: {e}")
+                    return False
+
+            print("[TERMO] Botão clicado com sucesso!")
             time.sleep(1)
+            return True
 
         except Exception as e:
-            print(f"Erro ao clicar no botão: {e}")
+            print(f"[TERMO] Erro inesperado: {e}")
+            return False
 
     def fechar(self):
         # Fecha a conexão com o browser
         self.driver.quit()
 
     def enviar_mensagem(self, nome):
-        # Lista com linhas de mensagem (vai usar Shift+Enter para quebras)
+        # Mensagem a enviar no Teams
         linhas_mensagem = [
             "Olá! Estamos entrando em contato para te lembrar de confirmar o seu termo de responsabilidade referente a seu equipamento.",
-            "",  # Linha vazia = parágrafo
+            "",
             "Por favor, para evitar o bloqueio de seu email, verifique seu e-mail e siga as instruções para completar o processo.",
-            "",  # Linha vazia = parágrafo
+            "",
             "Orientações:",
             "1 - Acessar o e-mail que chegou para você com o assunto '[VC-X Sonar] Entrega em andamento de ativo' >",
             "2 - Clicar em 'Ver Proposta de Movimentação de Ativo' >",
             "3- Ir em 'Confirmar movimentação' e pronto.",
-            "",  # Linha vazia = parágrafo
+            "",
             "Agradecemos sua atenção!"]
 
-        # Abre o Teams e captura erro de navegação
+        # Fase 1: Abre o Teams
         try:
+            print(f"[TEAMS] Fase 1: Abrindo Teams para {nome}...")
             self.abrir_link("https://teams.microsoft.com/v2/")
         except Exception as e:
             print(f"[TEAMS] Erro ao abrir Teams: {e}")
             return False
 
         wait = WebDriverWait(self.driver, 5)
-        print(f"[TEAMS] Iniciando busca por {nome}...")
 
-        # Localiza a barra de pesquisa (tenta ID, depois XPath)
+        # Fase 2: Localiza a barra de pesquisa
+        print(f"[TEAMS] Fase 2: Procurando usuário {nome}...")
         try:
             search_input = wait.until(EC.element_to_be_clickable((By.ID, "ms-searchux-input")))
-            print("[TEAMS] Barra de pesquisa encontrada por ID.")
+            print("[TEAMS] Barra de pesquisa localizada por ID.")
         except TimeoutException:
             try:
-                print("[TEAMS] Tentando localizar a barra de pesquisa por XPath...")
                 search_input = wait.until(EC.element_to_be_clickable((By.XPATH, "//input[@aria-label='Search box']")))
-                print("[TEAMS] Barra de pesquisa encontrada por XPath.")
+                print("[TEAMS] Barra de pesquisa localizada por XPath.")
             except TimeoutException as e:
-                print(f"[TEAMS] ERRO: barra de pesquisa não encontrada: {e}")
+                print(f"[TEAMS] Erro: barra de pesquisa não encontrada.")
                 return False
 
-        # Pesquisa o usuário e seleciona o resultado
+        # Fase 3: Pesquisa o usuário
         try:
+            print(f"[TEAMS] Fase 3: Digitando nome {nome}...")
             search_input.clear()
             search_input.send_keys(nome)
             search_input.send_keys(Keys.ENTER)
-            time.sleep(1)  # deixa o Teams atualizar resultados
+            time.sleep(1)
 
-            # Tenta localizar o cartão de pessoa que contenha o nome pesquisado
+            # Fase 4: Seleciona o resultado
+            print(f"[TEAMS] Fase 4: Selecionando resultado para {nome}...")
             try:
                 card_xpath = "//div[@data-tid='search-people-card' and .//span[contains(normalize-space(.), '{}')]]".format(nome)
                 button_xpath = card_xpath + "//button[@data-tid='carousel-card-button']"
                 card_button = wait.until(EC.element_to_be_clickable((By.XPATH, button_xpath)))
-                print("testando encontro do card da pessoa...")
-                # Rola o cartão para o centro e tenta clicar via JS (evita interceptação)
+                print("[TEAMS] Resultado localizado por XPath (nome exato).")
                 try:
                     self.driver.execute_script("arguments[0].scrollIntoView({block:'center'});", card_button)
                     time.sleep(0.2)
                     self.driver.execute_script("arguments[0].click();", card_button)
-                    print(f"[TEAMS] Resultado selecionado por cartão para {nome}.")
+                    print("[TEAMS] Resultado clicado via JavaScript.")
                 except ElementClickInterceptedException:
-                    # Se elemento interceptado, tenta ActionChains
-                    try:
-                        ActionChains(self.driver).move_to_element(card_button).click().perform()
-                        print(f"[TEAMS] Resultado selecionado por cartão (ActionChains) para {nome}.")
-                    except Exception as e:
-                        print(f"[TEAMS] Falha ao clicar no cartão: {e}")
-                        raise
+                    ActionChains(self.driver).move_to_element(card_button).click().perform()
+                    print("[TEAMS] Resultado clicado via ActionChains.")
 
             except TimeoutException:
-                # Fallback: tenta clicar no primeiro cartão disponível
+                print("[TEAMS] Resultado por nome não encontrado, tentando primeiro...")
                 try:
                     first_button = wait.until(EC.element_to_be_clickable((By.XPATH, "//div[@data-tid='search-people-card']//button[@data-tid='carousel-card-button']")))
+                    print("[TEAMS] Primeiro resultado localizado por XPath.")
                     try:
                         self.driver.execute_script("arguments[0].scrollIntoView({block:'center'});", first_button)
                         time.sleep(0.2)
                         self.driver.execute_script("arguments[0].click();", first_button)
-                        print(f"[TEAMS] Selecionou primeiro resultado disponível para {nome}.")
+                        print("[TEAMS] Primeiro resultado clicado via JavaScript.")
                     except Exception:
                         first_button.click()
-                        print(f"[TEAMS] Selecionou primeiro resultado disponível para {nome} (click()).")
+                        print("[TEAMS] Primeiro resultado clicado via click() nativo.")
                 except Exception as e:
-                    print(f"[TEAMS] Não foi possível selecionar resultado de pesquisa: {e}")
+                    print(f"[TEAMS] Erro: resultado não encontrado.")
                     return False
 
-            # Aguarda o campo de mensagem e envia
+            # Fase 5: Envia a mensagem
+            print(f"[TEAMS] Fase 5: Enviando mensagem para {nome}...")
             message_box = wait.until(EC.element_to_be_clickable((By.XPATH, "//div[@contenteditable='true']")))
             message_box.click()
 
-            # Envia cada linha com Shift+Enter para quebra (exceto a última, que usa Enter)
             for i, linha in enumerate(linhas_mensagem):
                 message_box.send_keys(linha)
                 if i < len(linhas_mensagem) - 1:
-                    # Shift+Enter para quebra de linha
                     message_box.send_keys(Keys.SHIFT + Keys.ENTER)
             
-            # Enter final para enviar
             message_box.send_keys(Keys.ENTER)
-
-            print(f"[TEAMS] Mensagem enviada com sucesso para {nome}.")
+            print(f"[TEAMS] Mensagem enviada com sucesso para {nome}!")
             return True
 
         except TimeoutException as e:
-            print(f"[TEAMS] ERRO DE TIMEOUT ao enviar mensagem: {e}")
+            print(f"[TEAMS] Erro: timeout ao processar {nome}.")
             return False
         except Exception as e:
-            print(f"[TEAMS] ERRO INESPERADO ao enviar mensagem: {e}")
+            print(f"[TEAMS] Erro inesperado ao processar {nome}: {e}")
             return False
 
 # Exemplo de uso

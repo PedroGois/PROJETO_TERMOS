@@ -5,7 +5,7 @@ from browser.automator import Automator
 def main():
     # Inicia o processamento
     print("=== INICIANDO PROCESSAMENTO ===\n")
-    caminho_excel = r"C:\Users\Estagiario\JFI Silvicultura Ltda\Suporte JFI - Ti\Pedro\CONTROLE\TERMO\COLETA TERMO - 03-12-25.xlsx"
+    caminho_excel = r"C:\Users\Estagiario\JFI Silvicultura Ltda\Suporte JFI - Ti\Pedro\CONTROLE\TERMO\COLETA TERMO.xlsx"
 
     # Carrega registros da planilha
     registros = carregar_planilha(caminho_excel)

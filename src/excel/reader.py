@@ -18,7 +18,7 @@ def carregar_planilha(caminho):
         link = linha[1].hyperlink.target if linha[1].hyperlink else None
 
         # Filtra registros por tipo de movimentação e pessoa
-        if tipo_mov == "Entrega em andamento" and pessoa != "DIGITAL BRENDA":
+        if tipo_mov == "Entrega em andamento" and pessoa != "DIGITAL BRENDA" and pessoa != "FELIPE VALVASSORI DE ALMEIDA":
             registros.append({
                 "pessoa": pessoa,
                 "ativo": ativo,

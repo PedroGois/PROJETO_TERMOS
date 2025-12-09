@@ -9,6 +9,7 @@ from selenium.webdriver.common.action_chains import ActionChains
 import time
 import subprocess
 import os
+from datetime import datetime
 
 
 class Automator:
@@ -24,9 +25,33 @@ class Automator:
         chrome_options.add_experimental_option("debuggerAddress", "127.0.0.1:9222")
 
         self.driver = webdriver.Chrome(options=chrome_options)
+        
+        # Arquivos de log
+        self.log_confirmados = "confirmados.log"  # Pessoas que já confirmaram o termo
+        self.log_pendentes = "pendentes.log"  # Pessoas que receberam mensagem (precisa confirmar)
+        self.log_erros = "erros.log"  # Pessoas com erro
+        
         print("Conectado com sucesso!")
         print("Titulo da pagina:", self.driver.title)
         time.sleep(2)
+
+    def registrar_confirmado(self, nome):
+        # Registra pessoa que já confirmou (botão não encontrado)
+        with open(self.log_confirmados, "a", encoding="utf-8") as f:
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            f.write(f"[{timestamp}] {nome}\n")
+
+    def registrar_pendente(self, nome):
+        # Registra pessoa que precisa confirmar (recebeu mensagem)
+        with open(self.log_pendentes, "a", encoding="utf-8") as f:
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            f.write(f"[{timestamp}] {nome}\n")
+
+    def registrar_erro(self, nome, erro):
+        # Registra pessoa com erro
+        with open(self.log_erros, "a", encoding="utf-8") as f:
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            f.write(f"[{timestamp}] {nome} - {erro}\n")
 
     def abrir_link(self, url):
         # Navega até a URL
@@ -85,11 +110,11 @@ class Automator:
             "Ainda falta confirmar o seu **Termo de Responsabilidade**. Pedimos que finalize este processo para **evitar o bloqueio do seu e-mail**.",
             "",
             "Siga estes 3 passos simples:",
-            "1️⃣ - Procure o e-mail com o assunto: '[VC-X Sonar] Entrega em andamento de ativo'",
-            "2️⃣ - Clique em 'Ver Proposta de Movimentação de Ativo'",
-            "3️⃣ - Vá em 'Confirmar movimentação' e pronto! ✅",
+            "1 - Procure o e-mail com o assunto: '[VC-X Sonar] Entrega em andamento de ativo'",
+            "2 - Clique em 'Ver Proposta de Movimentação de Ativo'",
+            "3 - Vá em 'Confirmar movimentação' e pronto! ✅",
             "",
-            "Qualquer dúvida, é só nos chamar! Agradecemos a atenção. 😊"
+            "Qualquer dúvida, é só nos chamar! Agradecemos a atenção."
         ]
 
         # Fase 1: Abre o Teams
@@ -160,6 +185,12 @@ class Automator:
             print(f"[TEAMS] Fase 5: Enviando mensagem para {nome}...")
             message_box = wait.until(EC.element_to_be_clickable((By.XPATH, "//div[@contenteditable='true']")))
             message_box.click()
+            time.sleep(0.3)
+            
+            # Limpa qualquer rascunho que possa estar na caixa de texto
+            message_box.send_keys(Keys.CONTROL + "a")  # Seleciona tudo
+            message_box.send_keys(Keys.DELETE)  # Deleta tudo
+            time.sleep(0.2)
 
             for i, linha in enumerate(linhas_mensagem):
                 message_box.send_keys(linha)

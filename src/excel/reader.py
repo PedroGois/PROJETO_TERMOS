@@ -1,4 +1,4 @@
-import openpyxl
+import openpyxl 
 
 def carregar_planilha(caminho):
     # Abre a planilha com valores apenas (sem fórmulas)

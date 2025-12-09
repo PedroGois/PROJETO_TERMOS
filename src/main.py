@@ -1,42 +1,32 @@
 from excel.reader import carregar_planilha
 from browser.automator import Automator
-
+import time
 
 def main():
-    # Inicia o processamento
-    print("=== INICIANDO PROCESSAMENTO ===\n")
-    caminho_excel = r"C:\Users\Estagiario\JFI Silvicultura Ltda\Suporte JFI - Ti\Pedro\CONTROLE\TERMO\COLETA TERMO.xlsx"
+    caminho_excel = r"C:\Users\Estagiario\JFI Silvicultura Ltda\Suporte JFI - Ti\Pedro\CONTROLE\TERMO\COLETA DE TERMO.xlsx"
 
-    # Carrega registros da planilha
     registros = carregar_planilha(caminho_excel)
 
-    if not registros:
-        print("Nenhum registro para processar. Encerrando.")
-        return
-
-    # Inicia a automação
     auto = Automator()
 
-    # Processa cada registro
-    total = len(registros)
-    for idx, reg in enumerate(registros, start=1):
-        print(f"\n[PROCESSO] {idx}/{total} - Processando {reg['pessoa']}...")
-        print(f"[PROCESSO] Link: {reg['link']}\n")
+    for reg in registros:
+        print(f"\nProcessando: {reg['pessoa']}")
+        print(f"Link: {reg['link']}\n")
 
-        auto.abrir_link(reg["link"])
-
-        # Se enviar_termo retornar False, pula para próximo registro
+        nome = reg['pessoa']
+        auto.abrir_link(reg['link'])
+        
+        # Verifica se o termo já foi confirmado (botão não encontrado)
         if not auto.enviar_termo():
-            print(f"[PROCESSO] Pulando {reg['pessoa']} — botão não encontrado.\n")
-            continue
+            print(f"✓ {nome} já confirmou o termo")
+            auto.registrar_confirmado(nome)
+        else:
+            # Se tem botão, significa que precisa confirmar - envia mensagem no Teams
+            print(f"✗ {nome} precisa confirmar - enviando mensagem Teams")
+            auto.enviar_mensagem(nome)
+            auto.registrar_pendente(nome)  # Registra como pendente (enviou mensagem)
 
-        nome = reg["pessoa"]
-        auto.enviar_mensagem(nome)
-        print(f"[PROCESSO] Concluído para {nome}.\n")
-
-    print("=== FIM DO PROCESSAMENTO ===")
     auto.fechar()
-
 
 if __name__ == "__main__":
     main()

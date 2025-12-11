@@ -26,10 +26,15 @@ class Automator:
 
         self.driver = webdriver.Chrome(options=chrome_options)
         
+        # Cria pasta logs na raiz do projeto se não existir
+        pasta_logs = os.path.join("..", "..", "logs")
+        if not os.path.exists(pasta_logs):
+            os.makedirs(pasta_logs)
+        
         # Arquivos de log
-        self.log_confirmados = "confirmados.log"  # Pessoas que já confirmaram o termo
-        self.log_pendentes = "pendentes.log"  # Pessoas que receberam mensagem (precisa confirmar)
-        self.log_erros = "erros.log"  # Pessoas com erro
+        self.log_confirmados = os.path.join(pasta_logs, "confirmados.log")  # Pessoas que já confirmaram o termo
+        self.log_pendentes = os.path.join(pasta_logs, "pendentes.log")  # Pessoas que receberam mensagem (precisa confirmar)
+        self.log_erros = os.path.join(pasta_logs, "erros.log")  # Pessoas com erro
         
         print("Conectado com sucesso!")
         print("Titulo da pagina:", self.driver.title)
@@ -58,7 +63,22 @@ class Automator:
         self.driver.get(url)
         time.sleep(1)
 
-    def enviar_termo(self):
+    def enviar_termo(self, nome):
+        # Fase 0: Validação de login (verifica se existe botão sign-in-button)
+        try:
+            print("[TERMO] Fase 0: Verificando se está na tela de login...")
+            wait = WebDriverWait(self.driver, 5)
+            login_button = wait.until(EC.element_to_be_clickable((By.ID, "sign-in-button")))
+            print("[TERMO] Botão de login encontrado! Clicando...")
+            login_button.click()
+            print("[TERMO] Login clicado. Aguardando carregamento (3s)...")
+            time.sleep(3)
+        except TimeoutException:
+            print("[TERMO] Nenhum botão de login encontrado - você já está logado!")
+        except Exception as e:
+            print(f"[TERMO] Erro na validação de login: {e}")
+            self.registrar_erro(nome, f"Erro na validação de login: {e}")
+
         # Fase 1: Localiza o botão de reenvio
         try:
             print("[TERMO] Fase 1: Procurando botão de reenvio...")
@@ -88,6 +108,7 @@ class Automator:
                     ActionChains(self.driver).move_to_element(botao).click().perform()
                 except Exception as e:
                     print(f"[TERMO] Erro ao clicar: {e}")
+                    self.registrar_erro(nome, f"Erro ao clicar no botão: {e}")
                     return False
 
             print("[TERMO] Botão clicado com sucesso!")
@@ -96,6 +117,7 @@ class Automator:
 
         except Exception as e:
             print(f"[TERMO] Erro inesperado: {e}")
+            self.registrar_erro(nome, f"Erro inesperado em enviar_termo: {e}")
             return False
 
     def fechar(self):
@@ -107,7 +129,7 @@ class Automator:
         linhas_mensagem = [
             "Olá! Estou passando aqui para te fazer um lembrete importante sobre o seu equipamento. ⚠️",
             "",
-            "Ainda falta confirmar o seu **Termo de Responsabilidade**. Pedimos que finalize este processo para **evitar o bloqueio do seu e-mail**.",
+            "Ainda falta confirmar o seu *Termo de Responsabilidade*. Pedimos que finalize este processo para *evitar o bloqueio do seu e-mail*.",
             "",
             "Siga estes 3 passos simples:",
             "1 - Procure o e-mail com o assunto: '[VC-X Sonar] Entrega em andamento de ativo'",

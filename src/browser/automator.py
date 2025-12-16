@@ -9,7 +9,6 @@ from selenium.webdriver.common.action_chains import ActionChains
 import time
 import subprocess
 import os
-from datetime import datetime
 
 
 class Automator:
@@ -18,7 +17,8 @@ class Automator:
         # Executa o .bat para iniciar Chrome em modo debug
         bat_completo = os.path.join(os.path.dirname(__file__), bat_path)
         subprocess.Popen(bat_completo)
-        time.sleep(3)
+        # aguarda um curto período para que o chrome debug inicie (se necessário)
+        time.sleep(1)
 
         chrome_options = Options()
         # Conecta à porta de debug aberta pelo .bat
@@ -26,44 +26,65 @@ class Automator:
 
         self.driver = webdriver.Chrome(options=chrome_options)
         
-        # Cria pasta logs na raiz do projeto se não existir
-        pasta_logs = os.path.join("..", "..", "logs")
-        if not os.path.exists(pasta_logs):
-            os.makedirs(pasta_logs)
-        
-        # Arquivos de log
-        self.log_confirmados = os.path.join(pasta_logs, "confirmados.log")  # Pessoas que já confirmaram o termo
-        self.log_pendentes = os.path.join(pasta_logs, "pendentes.log")  # Pessoas que receberam mensagem (precisa confirmar)
-        self.log_erros = os.path.join(pasta_logs, "erros.log")  # Pessoas com erro
-        
+        self.vcx_handle = self.driver.current_window_handle
+        self.teams_handle = None
         print("Conectado com sucesso!")
-        print("Titulo da pagina:", self.driver.title)
-        time.sleep(2)
 
-    def registrar_confirmado(self, nome):
-        # Registra pessoa que já confirmou (botão não encontrado)
-        with open(self.log_confirmados, "a", encoding="utf-8") as f:
-            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            f.write(f"[{timestamp}] {nome}\n")
+    def alternar_aba(self, aba):
+        """Gerencia a troca entre VCX e Teams sem recarregar páginas."""
+        if aba == "TEAMS":
+            if self.teams_handle is None:
+                print("[SISTEMA] Abrindo Teams pela primeira vez (novo tab via Selenium)...")
+                # tenta abrir nova aba via Selenium 4 API
+                try:
+                    self.driver.switch_to.new_window('tab')
+                    self.driver.get('https://teams.microsoft.com/')
+                    try:
+                        WebDriverWait(self.driver, 20).until(
+                            EC.presence_of_element_located((By.ID, 'ms-searchux-input'))
+                        )
+                    except Exception:
+                        pass
+                    self.teams_handle = self.driver.current_window_handle
+                    print(f"[SISTEMA] Nova aba criada: {self.teams_handle}")
+                except Exception as e:
+                    print(f"[SISTEMA] Falha ao criar nova aba com Selenium: {e} - tentando fallback JS...")
+                    try:
+                        self.driver.execute_script("window.open('https://teams.microsoft.com/v2/', '_blank');")
+                        try:
+                            WebDriverWait(self.driver, 20).until(
+                                lambda d: len(d.window_handles) > 1
+                            )
+                        except Exception:
+                            pass
+                        self.teams_handle = self.driver.window_handles[-1]
+                        print(f"[SISTEMA] Fallback criou aba: {self.teams_handle}")
+                    except Exception as ex:
+                        print(f"[SISTEMA] Fallback também falhou: {ex}")
+                        raise
 
-    def registrar_pendente(self, nome):
-        # Registra pessoa que precisa confirmar (recebeu mensagem)
-        with open(self.log_pendentes, "a", encoding="utf-8") as f:
-            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            f.write(f"[{timestamp}] {nome}\n")
-
-    def registrar_erro(self, nome, erro):
-        # Registra pessoa com erro
-        with open(self.log_erros, "a", encoding="utf-8") as f:
-            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            f.write(f"[{timestamp}] {nome} - {erro}\n")
+            print(f"[SISTEMA] Alternando para handle do Teams: {self.teams_handle}")
+            self.driver.switch_to.window(self.teams_handle)
 
     def abrir_link(self, url):
-        # Navega até a URL
-        self.driver.get(url)
-        time.sleep(1)
+        """Abre o `url` na aba VCX (garante alternância para a aba correta)."""
+        try:
+            # garante que temos um handle do VCX
+            if not hasattr(self, 'vcx_handle') or self.vcx_handle is None:
+                self.vcx_handle = self.driver.current_window_handle
 
-    def enviar_termo(self, nome):
+            self.driver.switch_to.window(self.vcx_handle)
+            self.driver.get(url)
+            try:
+                WebDriverWait(self.driver, 10).until(
+                    lambda d: d.execute_script("return document.readyState") == "complete"
+                )
+            except Exception:
+                pass
+        except Exception as e:
+            print(f"[SISTEMA] Erro ao abrir link {url}: {e}")
+
+    def enviar_termo(self):
         # Fase 0: Validação de login (verifica se existe botão sign-in-button)
         try:
             print("[TERMO] Fase 0: Verificando se está na tela de login...")
@@ -71,13 +92,14 @@ class Automator:
             login_button = wait.until(EC.element_to_be_clickable((By.ID, "sign-in-button")))
             print("[TERMO] Botão de login encontrado! Clicando...")
             login_button.click()
-            print("[TERMO] Login clicado. Aguardando carregamento (3s)...")
-            time.sleep(3)
+            try:
+                WebDriverWait(self.driver, 10).until(EC.staleness_of(login_button))
+            except Exception:
+                pass
         except TimeoutException:
             print("[TERMO] Nenhum botão de login encontrado - você já está logado!")
         except Exception as e:
             print(f"[TERMO] Erro na validação de login: {e}")
-            self.registrar_erro(nome, f"Erro na validação de login: {e}")
 
         # Fase 1: Localiza o botão de reenvio
         try:
@@ -99,7 +121,6 @@ class Automator:
             # Fase 2: Rola e clica no botão
             print("[TERMO] Fase 2: Rolando e clicando no botão...")
             self.driver.execute_script("arguments[0].scrollIntoView(true);", botao)
-            time.sleep(0.5)
 
             try:
                 self.driver.execute_script("arguments[0].click();", botao)
@@ -108,21 +129,22 @@ class Automator:
                     ActionChains(self.driver).move_to_element(botao).click().perform()
                 except Exception as e:
                     print(f"[TERMO] Erro ao clicar: {e}")
-                    self.registrar_erro(nome, f"Erro ao clicar no botão: {e}")
                     return False
 
+            try:
+                WebDriverWait(self.driver, 5).until(EC.staleness_of(botao))
+            except Exception:
+                pass
+
             print("[TERMO] Botão clicado com sucesso!")
-            time.sleep(1)
             return True
 
         except Exception as e:
             print(f"[TERMO] Erro inesperado: {e}")
-            self.registrar_erro(nome, f"Erro inesperado em enviar_termo: {e}")
             return False
 
-    def fechar(self):
-        # Fecha a conexão com o browser
-        self.driver.quit()
+    # O método fechar foi removido por solicitação do usuário.
+
 
     def enviar_mensagem(self, nome):
         # Mensagem a enviar no Teams
@@ -138,17 +160,15 @@ class Automator:
             "",
             "Qualquer dúvida, é só nos chamar! Agradecemos a atenção."
         ]
-
-        # Fase 1: Abre o Teams
+        
         try:
-            print(f"[TEAMS] Fase 1: Abrindo Teams para {nome}...")
-            self.abrir_link("https://teams.microsoft.com/v2/")
+            print(f"[TEAMS] Fase 1: Alternando para aba do Teams para {nome}...")
+            self.alternar_aba("TEAMS")
+            wait = WebDriverWait(self.driver, 15)
         except Exception as e:
-            print(f"[TEAMS] Erro ao abrir Teams: {e}")
+            print(f"[TEAMS] Erro ao alternar para aba do Teams: {e}")
             return False
-
-        wait = WebDriverWait(self.driver, 5)
-
+            
         # Fase 2: Localiza a barra de pesquisa
         print(f"[TEAMS] Fase 2: Procurando usuário {nome}...")
         try:
@@ -168,7 +188,12 @@ class Automator:
             search_input.clear()
             search_input.send_keys(nome)
             search_input.send_keys(Keys.ENTER)
-            time.sleep(1)
+            try:
+                WebDriverWait(self.driver, 8).until(
+                    EC.presence_of_element_located((By.XPATH, "//div[@data-tid='search-people-card']"))
+                )
+            except Exception:
+                pass
 
             # Fase 4: Seleciona o resultado
             print(f"[TEAMS] Fase 4: Selecionando resultado para {nome}...")
@@ -179,7 +204,6 @@ class Automator:
                 print("[TEAMS] Resultado localizado por XPath (nome exato).")
                 try:
                     self.driver.execute_script("arguments[0].scrollIntoView({block:'center'});", card_button)
-                    time.sleep(0.2)
                     self.driver.execute_script("arguments[0].click();", card_button)
                     print("[TEAMS] Resultado clicado via JavaScript.")
                 except ElementClickInterceptedException:
@@ -193,7 +217,6 @@ class Automator:
                     print("[TEAMS] Primeiro resultado localizado por XPath.")
                     try:
                         self.driver.execute_script("arguments[0].scrollIntoView({block:'center'});", first_button)
-                        time.sleep(0.2)
                         self.driver.execute_script("arguments[0].click();", first_button)
                         print("[TEAMS] Primeiro resultado clicado via JavaScript.")
                     except Exception:
@@ -207,20 +230,21 @@ class Automator:
             print(f"[TEAMS] Fase 5: Enviando mensagem para {nome}...")
             message_box = wait.until(EC.element_to_be_clickable((By.XPATH, "//div[@contenteditable='true']")))
             message_box.click()
-            time.sleep(0.3)
-            
+
             # Limpa qualquer rascunho que possa estar na caixa de texto
             message_box.send_keys(Keys.CONTROL + "a")  # Seleciona tudo
             message_box.send_keys(Keys.DELETE)  # Deleta tudo
-            time.sleep(0.2)
 
+            # Pequeno delay controlado enquanto digita cada linha (evita problemas de envio acelerado)
             for i, linha in enumerate(linhas_mensagem):
                 message_box.send_keys(linha)
                 if i < len(linhas_mensagem) - 1:
                     message_box.send_keys(Keys.SHIFT + Keys.ENTER)
-            
+                time.sleep(0.05)
+
             message_box.send_keys(Keys.ENTER)
             print(f"[TEAMS] Mensagem enviada com sucesso para {nome}!")
+            self.alternar_aba("VCX")
             return True
 
         except TimeoutException as e:
@@ -230,7 +254,6 @@ class Automator:
             print(f"[TEAMS] Erro inesperado ao processar {nome}: {e}")
             return False
 
-# Exemplo de uso
-if __name__ == "__main__":
-    bot = Automator()
+# Módulo pronto para importação e uso por outros scripts. Exemplo de execução
+# foi removido; o próximo passo será implementar gravação em planilha com openpyxl.
 

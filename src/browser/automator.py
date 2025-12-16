@@ -66,9 +66,23 @@ class Automator:
             print(f"[SISTEMA] Alternando para handle do Teams: {self.teams_handle}")
             self.driver.switch_to.window(self.teams_handle)
 
+    def registrar_status(self, mensagem):
+        """Registra uma mensagem de status em log e imprime no console."""
+        try:
+            ts = time.strftime('%Y-%m-%d %H:%M:%S')
+            linha = f"[{ts}] {mensagem}\n"
+            pasta = os.path.dirname(__file__)
+            caminho = os.path.join(pasta, 'automator_status.log')
+            with open(caminho, 'a', encoding='utf-8') as f:
+                f.write(linha)
+        except Exception:
+            pass
+        print(f"[STATUS] {mensagem}")
+
     def abrir_link(self, url):
         """Abre o `url` na aba VCX (garante alternância para a aba correta)."""
         try:
+            self.registrar_status(f"Abrindo link: {url}")
             # garante que temos um handle do VCX
             if not hasattr(self, 'vcx_handle') or self.vcx_handle is None:
                 self.vcx_handle = self.driver.current_window_handle
@@ -81,8 +95,9 @@ class Automator:
                 )
             except Exception:
                 pass
+            self.registrar_status(f"Link carregado: {url}")
         except Exception as e:
-            print(f"[SISTEMA] Erro ao abrir link {url}: {e}")
+            self.registrar_status(f"Erro ao abrir link {url}: {e}")
 
     def enviar_termo(self):
         # Fase 0: Validação de login (verifica se existe botão sign-in-button)
@@ -116,6 +131,7 @@ class Automator:
                     print("[TERMO] Botão localizado por XPath.")
                 except (TimeoutException, NoSuchElementException):
                     print("[TERMO] Botão não encontrado — pessoa já assinou o termo.")
+                    self.registrar_status("VCX: Nenhum botão de reenvio encontrado - já assinado")
                     return False
 
             # Fase 2: Rola e clica no botão
@@ -137,6 +153,7 @@ class Automator:
                 pass
 
             print("[TERMO] Botão clicado com sucesso!")
+            self.registrar_status("VCX: Reenvio acionado com sucesso")
             return True
 
         except Exception as e:
@@ -164,6 +181,7 @@ class Automator:
         try:
             print(f"[TEAMS] Fase 1: Alternando para aba do Teams para {nome}...")
             self.alternar_aba("TEAMS")
+            self.registrar_status(f"Teams: alternando para enviar mensagem a {nome}")
             wait = WebDriverWait(self.driver, 15)
         except Exception as e:
             print(f"[TEAMS] Erro ao alternar para aba do Teams: {e}")
@@ -244,6 +262,7 @@ class Automator:
 
             message_box.send_keys(Keys.ENTER)
             print(f"[TEAMS] Mensagem enviada com sucesso para {nome}!")
+            self.registrar_status(f"Teams: mensagem enviada para {nome}")
             self.alternar_aba("VCX")
             return True
 

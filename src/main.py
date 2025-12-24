@@ -2,7 +2,12 @@ from excel.reader import carregar_planilha
 import excel.writer as writer
 from browser.automator import Automator
 import os
+import subprocess
+import sys
+import time
 
+# Fecha Excel antes de rodar
+subprocess.call([sys.executable, r"C:\Users\Estagiario\JFI Silvicultura Ltda\Suporte JFI - Ti\Pedro\PROJETOS\PROJETO_TERMOS\src\excel\fechar_excel.py"])
 
 def main():
     caminho_dir = r"C:\Users\Estagiario\JFI Silvicultura Ltda\Suporte JFI - Ti\Pedro\CONTROLE\TERMO"
